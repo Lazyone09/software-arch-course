@@ -1,0 +1,89 @@
+@startuml deployment
+
+node web as "web client"
+node mobile as "mobile app"
+
+
+node dc as "K8S" {
+artifact ingress as "ingress"
+artifact ingress_vendor as "ingress vendor"
+    node service {
+        
+
+        artifact trip_cp as "trip command processer"
+        artifact trip_q as "trip queue processer"
+
+    }
+control s3_lb as "load balancer s3"
+control pg_lb as "load balancer pg"
+    node database {
+        
+        database master_s3
+        database slave_s3
+
+        
+        database master_pg
+        database slave_pg
+    }
+
+    artifact kafka_rest as "kafka rest client"
+    control kafka_lb as "load balancer"
+    node kafka_cl as "kafka cluster"{
+        queue kafka_1
+        queue kafka_2
+    }
+
+
+    node service_2 {
+        artifact v as "vendor integration client"
+        artifact v_q as "vendor query processor"
+
+        v -d[hidden]- v_q 
+    }
+}
+
+node c1 as "client system 1"
+node c2 as "client system 2"
+
+
+
+
+web -- ingress : www.travelapp.com 
+mobile -- ingress : api.travelapp.com
+
+
+ingress -- trip_q
+ingress -- kafka_rest
+ingress -- trip_cp
+
+v -- kafka_lb
+trip_cp - kafka_lb 
+trip_cp - pg_lb
+trip_cp - s3_lb
+
+trip_q -- pg_lb
+trip_q -- s3_lb
+
+pg_lb -- master_pg
+pg_lb -- slave_pg
+
+s3_lb -- master_s3
+s3_lb -- slave_s3
+
+master_s3 -- slave_s3 
+master_pg -- slave_pg
+
+kafka_rest -- kafka_lb
+
+kafka_lb -- kafka_1
+kafka_lb -- kafka_2
+
+v_q -- pg_lb
+
+c1 -d- ingress_vendor
+c2 -d- ingress_vendor
+
+ingress_vendor - v
+ingress_vendor - v_q
+
+@enduml

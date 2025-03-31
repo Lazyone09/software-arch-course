@@ -1,0 +1,56 @@
+@startuml entities
+
+entity users as "Пользователи"  {
+    * id bigserial
+    base_country
+}
+
+database "Секционирование по пользователю" {
+entity trips as "Поездки"{
+    * usr_id
+    * date_from
+    date_to
+}
+package bookings as "Бронирования" {
+
+    entity bookings_meta as "Данные бронирования"{
+        booking_id
+        usr_id
+        trip_id
+        date_from
+        date_to
+        source_system
+        vendor
+        location_from
+        location_to
+        contacts{}
+        additional_info{}
+        cost
+    }
+
+    entity bookings_files as "Файлы бронирования" {
+        file_id
+        booking_id
+        user_id
+    }
+}
+}
+    entity archive as "Архив"{
+        user_id
+        user_country
+        trip_id
+        trip_total_cost
+        date_from
+        date_to
+    }
+
+
+bookings_files }- bookings_meta
+bookings_meta }- trips
+
+trips }- users
+
+archive }-- users
+archive }-- trips
+
+@enduml

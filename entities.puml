@@ -1,0 +1,14 @@
+@startuml entities
+
+entity users as "Пользователи"  
+entity trips as "Поездки"
+entity bookings as "Бронирования"
+entity archive as "Архив"
+
+users "1" o- "0..N" trips : относятся к
+trips "0" *- "0..N" bookings : составляют
+
+trips ..> archive : перемещаются
+
+
+@enduml
