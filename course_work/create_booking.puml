@@ -1,0 +1,93 @@
+@startuml create booking
+' Отображение дэшборда пользователя
+autonumber
+
+skinparam SequenceGroupBodyBackgroundColor #FFFFFF90
+skinparam maxMessageSize 200
+skinparam sequence {
+GroupBorderColor darkblue
+LifeLineBorderColor green
+LifeLineBackgroundColor lightgreen
+}
+
+
+participant p1 as "Партнерская система бронирования"
+
+box t_app as "Traveller app data center 1" 
+
+    participant p_gw as "Partner API gateway" 
+    participant p_i as "Partners integration backend"
+    database p_s3 as "S3 input cache"
+
+    
+
+    queue p_kafka as  "Streaming comand pipe"
+    participant b_p as "Booking command processor"
+
+    control t_db_lb as "DB loadbalancer"
+    database t_db as "DB"
+
+    control t_s3_lb as "S3 loadbalancer"
+    database t_s3 as "S3"
+
+end box
+
+box t_app_2 as "Traveller app data center 2" #LightBlue
+    participant t_app_2_back as "App"
+end box
+
+
+p1 -> p_gw++ : Передать информацию о созданном бронировании
+
+p_gw -> p_gw++ : check APIKey 
+return ObjectBackgroundColor
+
+p_gw -> p_i++: data
+
+p_i -> p_s3++: Save files from booking TTL 2days
+return result 
+alt result != success
+    p_i -> p_gw : error
+    p_gw -> p1: error
+end alt
+
+
+p_i -> p_kafka: send command
+return ok
+return ok
+
+
+activate b_p
+b_p -> p_kafka: get message from topic 
+b_p -> p_s3++: get files
+return binary
+
+b_p -> t_db_lb++: get trip info
+t_db_lb -> t_db++ : Save booking to trip 
+return ok 
+return ok
+
+b_p -> t_s3_lb++: 
+t_s3_lb -> t_s3++ : Save files
+return ok 
+return ok
+
+alt "Проверяем необходимость инсертить данные пользователя в ближайший к нему ДЦ"
+
+b_p -> t_app_2_back++
+return ok
+
+end
+
+deactivate
+
+
+
+
+
+
+
+
+
+
+@enduml

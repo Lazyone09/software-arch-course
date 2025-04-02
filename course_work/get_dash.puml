@@ -1,0 +1,106 @@
+@startuml get_dash
+' Отображение дэшборда пользователя
+autonumber
+
+skinparam SequenceGroupBodyBackgroundColor #FFFFFF90
+skinparam maxMessageSize 200
+skinparam sequence {
+GroupBorderColor darkblue
+LifeLineBorderColor green
+LifeLineBackgroundColor lightgreen
+}
+
+
+note over usr , t_app_2_back
+    Рассматриваем вариант получения дэшборда пользователем после того как он улетел в поездку
+end note
+actor usr as "Путешественник"
+
+participant mob as "Мобильное приложение"
+database mob_cache as "Кэш мобильного приложения"
+
+control geoip as "Load balancer"
+
+box t_app as "Traveller app data center 1" 
+
+    participant m_gw as "Mobile API gateway" 
+    participant t_q as "Trips query processor"
+    database t_c as "Trips cache"
+
+    control t_db_lb as "DB loadbalancer"
+    database t_db as "DB"
+
+    control t_s3_lb as "S3 loadbalancer"
+    database t_s3 as "S3"
+
+end box
+
+box t_app_2 as "Traveller app data center 2" #LightBlue
+    participant t_app_2_back as "App"
+end box
+
+
+
+usr -> mob++ : Запрос инфы о поездке
+
+
+mob -> mob_cache++: chech cached data 
+alt "hit" 
+    return dash data
+    mob -> usr : Данные поездки
+end 
+
+
+mob -> geoip++ : Геомаршрутизация 
+geoip -> m_gw++ 
+
+m_gw -> m_gw++ : Аутентификация + авторизация
+return ок
+
+m_gw -> t_q++ 
+t_q -> t_c++ : Check cache data
+alt "hit" 
+    return dash data
+    t_q -> m_gw : Инфа для просмотра
+    m_gw -> geoip: ok
+    geoip -> mob : ok
+    mob -> usr : Данные поездки
+end 
+
+t_q -> t_db_lb++: pick replica
+t_db_lb -> t_db++: get data
+return data
+return data
+alt "Не найдено данных в ДЦ или данные устаревшие" 
+    t_q -> t_app_2_back++: get data from user's country data canter
+    return new data
+
+    t_q -> t_db_lb++ : update data 
+    t_db_lb -> t_db++ : update data
+    return ok 
+    return ok
+
+    t_q -> t_s3_lb++ : update data 
+    t_s3_lb -> t_s3++ : update data
+    return ok 
+    return ok
+end
+
+
+return dash files
+return dash data + files links
+return data
+
+mob -> mob_cache++ : insert into cache 
+return ok
+
+return Данные поездки
+
+
+
+
+
+
+
+
+@enduml
